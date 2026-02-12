@@ -1,0 +1,115 @@
+name: lasuite-meet
+
+networks:
+  meet:
+    external: true
+  traefik:
+    external: true
+
+services:
+  postgresql:
+    image: postgres:16
+    networks:
+      meet:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 1s
+      timeout: 2s
+      retries: 300
+    env_file:
+    - env.d/meet/postgresql
+    - env.d/meet/common
+    volumes:
+    - ./data/meet/databases/backend:/var/lib/postgresql/data
+
+  redis:
+    image: redis:5
+    networks:
+      meet:
+
+  backend:
+    image: lasuite/meet-backend:latest
+    networks:
+      meet:
+    extra_hosts:
+      - "id.beardedtek.com=192.168.3.33"
+      - "meet.beardedtek.com=192.168.3.33"
+      - "livekit.beardedtek.com=192.168.3.33"
+    user: ${DOCKER_USER:-1000}
+    restart: always
+    env_file:
+    - env.d/meet/common
+    - env.d/meet/postgresql
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 15s
+      timeout: 30s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      postgresql:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+
+  frontend:
+    image: lasuite/meet-frontend:latest
+    networks:
+      meet:
+      traefik:
+    extra_hosts:
+      - "id.beardedtek.com=192.168.3.33"
+      - "livekit.beardedtek.com=192.168.3.33"
+    user: "${DOCKER_USER:-1000}"
+    entrypoint:
+      - /docker-entrypoint.sh
+    command: ["nginx", "-g", "daemon off;"]
+    env_file:
+      - env.d/meet/common
+    environment:
+      - VIRTUAL_PORT=8083 # used by nginx proxy
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./config/meet/default.conf.template:/etc/nginx/templates/docs.conf.template
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=traefik'
+      - 'traefik.http.routers.meet.rule=Host(`${MEET_HOST`)'
+      - 'traefik.http.routers.meet.entryPoints=https'
+      - 'traefik.http.routers.meet.tls=true'
+      - 'traefik.http.routers.meet.tls.certresolver=le'
+      - "traefik.http.routers.meet.service=meet-entrypoint"
+      - 'traefik.http.services.meet-entrypoint.loadbalancer.server.port=8083'
+
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /config.yaml
+    ports:
+      - 7881:7881/tcp
+      - 7882:7882/udp
+    volumes:
+      - ./config/meet/livekit-server.yaml:/config.yaml
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      meet:
+      traefik:
+    extra_hosts:
+      - "id.beardedtek.com=192.168.3.33"
+      - "meet.beardedtek.com=192.168.3.33"
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=traefik'
+      - 'traefik.http.routers.livekit.rule=Host(`${LIVEKIT_HOST}`)'
+      - 'traefik.http.routers.livekit.entryPoints=https'
+      - 'traefik.http.routers.livekit.tls=true'
+      - 'traefik.http.routers.livekit.tls.certresolver=le'
+      - "traefik.http.routers.livekit.service=livekit-entrypoint"
+      - 'traefik.http.services.livekit-entrypoint.loadbalancer.server.port=7880'

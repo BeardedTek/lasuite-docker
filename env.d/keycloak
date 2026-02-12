@@ -1,0 +1,8 @@
+# Keycloak admin user
+KC_BOOTSTRAP_ADMIN_USERNAME=admin
+KC_BOOTSTRAP_ADMIN_PASSWORD=<YOUR_PASSWORD>
+
+# Keycloak configuration
+KC_HOSTNAME=https://id.example.com # Change with your own URL
+KC_PROXY_HEADERS=xforwarded # in this example we are running behind an nginx proxy
+KC_HTTP_ENABLED=true # in this example we are running behind an nginx proxy
