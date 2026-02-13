@@ -48,7 +48,7 @@ REALM_NAME=meet
 
 - Replace `<POSTGRES_PASSWORD>` with your secure password.
 
-#### Edit `env.d/keyclock`
+#### Edit `env.d/keycloak`
 
 - Replace `<YOUR_PASSWORD>` with your secure password.
 - Replace `id.example.com` with `id.yourdomain.com`
