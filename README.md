@@ -56,7 +56,8 @@ REALM_NAME=meet
 #### Bring up Keycloak
 
 ```bash
-docker compose -f keycloak up -d
+docker compose network create keycloak
+docker compose -f keycloak.yml up -d
 ```
 
 Now follow this procedure taken from [https://github.com/suitenumerique/meet/blob/main/docs/examples/compose/keycloak/README.md](https://github.com/suitenumerique/meet/blob/main/docs/examples/compose/keycloak/README.md)
